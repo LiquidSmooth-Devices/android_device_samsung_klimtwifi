@@ -1,9 +1,9 @@
 [
     {
-        "remote": "cm",
+        "remote": "lsd",
         "repository": "android_kernel_samsung_klimtwifi",
         "target_path": "kernel/samsung/klimtwifi",
-        "revision": "cm-12.1"
+        "revision": "5.1"
     },
     {
         "remote": "cm",
