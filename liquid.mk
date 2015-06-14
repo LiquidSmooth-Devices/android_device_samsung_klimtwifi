@@ -1,7 +1,7 @@
 $(call inherit-product, device/samsung/klimtwifi/full_klimtwifi.mk)
 
 # Inherit some common Liquid stuff.
-$(call inherit-product, vendor/liquid/config/common_full_tablet_wifionly.mk)
+$(call inherit-product, vendor/liquid/config/common_tablet_wifionly.mk)
 
 PRODUCT_NAME := liquid_klimtwifi
 PRODUCT_DEVICE := klimtwifi
