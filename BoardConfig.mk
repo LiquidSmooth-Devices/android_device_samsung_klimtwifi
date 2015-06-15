@@ -60,8 +60,6 @@ BOARD_KERNEL_BASE := 0x10000000
 BOARD_KERNEL_PAGESIZE := 2048
 TARGET_KERNEL_CONFIG := deathly_klimtwifi_defconfig
 TARGET_KERNEL_SOURCE := kernel/samsung/klimtwifi
-# TARGET_KERNEL_CUSTOM_TOOLCHAIN := arm-eabi-4.6
-# KERNEL_TOOLCHAIN := /home/cmbuild/android/prebuilts/gcc/linux-x86/arm/arm-eabi-4.6/bin
 
 # Battery
 BOARD_BATTERY_DEVICE_NAME := battery
@@ -87,7 +85,7 @@ BOARD_USES_HWC_SERVICES := true
 TARGET_SPECIFIC_HEADER_PATH := $(LOCAL_PATH)/include
 
 # Hardware
-#BOARD_HARDWARE_CLASS += device/samsung/klimtwifi/cmhw
+BOARD_HARDWARE_CLASS += device/samsung/klimtwifi/cmhw
 
 # Init
 TARGET_NR_SVC_SUPP_GIDS := 20
