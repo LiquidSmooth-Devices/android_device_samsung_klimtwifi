@@ -64,7 +64,6 @@ PRODUCT_COPY_FILES += \
 
 PRODUCT_PACKAGES += \
     init.universal5420.rc \
-    lpm.rc \
     ueventd.universal5420.rc
 
 # Radio (needed for audio controls even on wifi-only)

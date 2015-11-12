@@ -16,7 +16,7 @@
  */
 
 //#define LOG_NDEBUG 0
-#define LOG_TAG "lights"
+#define LOG_TAG "LibLightsHAL"
 #include <cutils/log.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,8 +31,11 @@
 static pthread_once_t g_init = PTHREAD_ONCE_INIT;
 static pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
 
-char const*const PANEL_FILE = "/sys/class/backlight/panel/brightness";
-char const*const BUTTON_FILE = "/sys/class/sec/sec_touchkey/brightness";
+char const*const BACKLIGHT_FILE = "/sys/class/backlight/panel/brightness";
+char const*const COLORTONE_FILE = "/sys/devices/platform/s5p-mipi-dsim.1/lcd/panel/mdnie/mode";
+
+
+char const*const BUTTONS_FILE = "/sys/class/sec/sec_touchkey/brightness";
 
 void init_g_lock(void)
 {
@@ -46,7 +49,7 @@ static int write_int(char const *path, int value)
 
     already_warned = 0;
 
-    ALOGV("write_int: path %s, value %d", path, value);
+//    ALOGE("write_int: path %s, value %d", path, value);
     fd = open(path, O_RDWR);
 
     if (fd >= 0) {
@@ -74,7 +77,7 @@ static int rgb_to_brightness(struct light_state_t const *state)
 
 static int is_lit(struct light_state_t const* state)
 {
-    return state->color & 0x00ffffff;
+    return (state->color & 0x00ffffff) > 0;
 }
 
 static int set_light_backlight(struct light_device_t *dev,
@@ -84,21 +87,33 @@ static int set_light_backlight(struct light_device_t *dev,
     int brightness = rgb_to_brightness(state);
 
     pthread_mutex_lock(&g_lock);
-    err = write_int(PANEL_FILE, brightness);
-
+    err = write_int(BACKLIGHT_FILE, brightness);
     pthread_mutex_unlock(&g_lock);
+
     return err;
 }
 
-static int
-set_light_buttons(struct light_device_t* dev,
+static int set_light_colortone(struct light_device_t *dev,
+            struct light_state_t const *state)
+{
+    int err = 0;
+    int colortone = rgb_to_brightness(state);
+
+    pthread_mutex_lock(&g_lock);
+    err = write_int(COLORTONE_FILE, colortone);
+    pthread_mutex_unlock(&g_lock);
+
+    return err;
+}
+
+static int set_light_buttons(struct light_device_t* dev,
         struct light_state_t const* state)
 {
     int err = 0;
     int on = is_lit(state);
 
     pthread_mutex_lock(&g_lock);
-    err = write_int(BUTTON_FILE, on?1:0);
+    err = write_int(BUTTONS_FILE, on?1:0);
     pthread_mutex_unlock(&g_lock);
 
     return err;
@@ -107,7 +122,7 @@ set_light_buttons(struct light_device_t* dev,
 
 static int close_lights(struct light_device_t *dev)
 {
-    ALOGV("close_light is called");
+//    ALOGE("close_light is called");
     if (dev)
         free(dev);
 
@@ -128,8 +143,11 @@ static int open_lights(const struct hw_module_t *module, char const *name,
 
     if (0 == strcmp(LIGHT_ID_BACKLIGHT, name))
         set_light = set_light_backlight;
+    else if (0 == strcmp(LIGHT_ID_COLORTONE, name))
+        set_light = set_light_colortone;
     else if (0 == strcmp(LIGHT_ID_BUTTONS, name))
         set_light = set_light_buttons;
+
     else if (0 == strcmp(LIGHT_ID_BATTERY, name))
         set_light = set_light_leds_noop;
     else if (0 == strcmp(LIGHT_ID_NOTIFICATIONS, name))
