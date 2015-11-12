@@ -5,38 +5,12 @@ import init.samsung.rc
 on init
     # Set permissions for persist partition
     mkdir /persist 0771 system system
-    mkdir /mnt/shell/emulated 0700 shell shell
-    mkdir /mnt/shell/container 0700 system system
-    mkdir /storage 0550 system sdcard_r
-    mkdir /storage/emulated 0555 root root
-
-    #External storage directories
-    mkdir /mnt/media_rw/sdcard1 0700 media_rw media_rw
-    mkdir /storage/usbdisk 0000 system system
-    mkdir /mnt/media_rw/usbdisk 0700 media_rw media_rw
-
-    mkdir /storage/sdcard1 0700 root root
-    mkdir /storage/usbdisk 0700 root root
-
-    export EXTERNAL_STORAGE /storage/emulated/legacy
-    export SECONDARY_STORAGE /storage/sdcard1:/storage/usbdisk
-    export EMULATED_STORAGE_SOURCE /mnt/shell/emulated
-    export EMULATED_STORAGE_TARGET /storage/emulated
 
     # Support legacy paths
-    symlink /storage/emulated/legacy /sdcard
-    symlink /storage/emulated/legacy /mnt/sdcard
-    symlink /storage/emulated/legacy /storage/sdcard0
-    symlink /mnt/shell/emulated/0 /storage/emulated/legacy
-    symlink /mnt/shell/container /storage/container
-    symlink /storage/sdcard1 /extSdCard
-    symlink /storage/sdcard1 /mnt/extSdCard
-    symlink /storage/sdcard1 /external_sd
-    symlink /storage/usbdisk /usbdisk
-    symlink /storage/usbdisk /mnt/usbdisk
+    symlink /sdcard /mnt/sdcard
+    symlink /sdcard /storage/sdcard0
 
     mkdir /efs 0771 radio system
-    mkdir /preload 0774 root root
 
 on early-init
     write /sys/block/mmcblk0/queue/read_ahead_kb 512
@@ -44,7 +18,7 @@ on early-init
     write /sys/block/mmcblk0/queue/scheduler noop
 
 on property:sys.boot_completed=1
-    write /sys/block/mmcblk0/queue/scheduler row
+    write /sys/block/mmcblk0/queue/scheduler bfq
 
     # Interactive
     write /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor interactive
@@ -60,15 +34,12 @@ on property:sys.boot_completed=1
     write /sys/devices/system/cpu/cpufreq/interactive/target_loads 85
 
     # Configure the cpu-boost module
-    #write /sys/module/cpu_boost/parameters/boost_ms 10
-    #write /sys/module/cpu_boost/parameters/input_boost_freq 1200000
-    #write /sys/module/cpu_boost/parameters/input_boost_ms 40
+    write /sys/module/cpu_boost/parameters/boost_ms 10
+    write /sys/module/cpu_boost/parameters/sync_threshold 1500000
+    write /sys/module/cpu_boost/parameters/input_boost_freq 1200000
+    write /sys/module/cpu_boost/parameters/input_boost_ms 40
 
 on post-fs-data
-    # we will remap this as /mnt/sdcard with the sdcard fuse tool
-    mkdir /data/media 0770 media_rw media_rw
-    chown media_rw media_rw /data/media
-
     setprop vold.post_fs_data_done 1
 
 # Permissions for bluetooth
@@ -247,6 +218,10 @@ on boot
     chown system radio /sys/class/sensors/temphumidity_sensor/send_accuracy
 
 # Permissions Camera
+    write /data/CameraID.txt 0
+    write /data/cal_data.bin 0
+    chown system radio /data/CameraID.txt
+    chown system radio /data/cal_data.bin
     chown system radio /sys/class/camera/rear/rear_camfw
     chown system radio /sys/class/camera/rear/rear_camtype
     chown system radio /sys/class/camera/flash/rear_flash
@@ -376,6 +351,7 @@ on fs
     mkdir /preload 0771 system system
 
     mount_all /fstab.universal5420
+
     setprop ro.crypto.fuse_sdcard true
 
 #For Absolute Persistence Partition 
@@ -396,6 +372,7 @@ on fs
 
 # Permissions for LCD
     chown system radio /sys/class/lcd/panel/lcd_type
+    chown system radio /sys/class/lcd/panel/power_reduce
 
 # Permissions for MDNIE
     chown system media_rw /sys/class/mdnie/mdnie/mode
@@ -441,22 +418,6 @@ on fs
 #    chown system radio /sys/class/camera/rear/isp_core
     chown system radio /sys/class/camera/front/front_camfw
     chown system radio /sys/class/camera/front/front_camtype
-
-# virtual sdcard daemon running as media_rw (1023)
-service sdcard /system/bin/sdcard -u 1023 -g 1023 -l /data/media /mnt/shell/emulated
-    class late_start
-    oneshot
-
-service fuse_sdcard1 /system/bin/sdcard -u 1023 -g 1023 -w 1023 /mnt/media_rw/sdcard1 /storage/sdcard1
-    class late_start
-    disabled
-
-service fuse_usbdisk /system/bin/sdcard -u 1023 -g 1023 -w 1023 /mnt/media_rw/usbdisk /storage/usbdisk
-    class late_start
-    disabled
-
-on property:ro.fuse_sdcard=true
-    start sdcard
 
 # Set watchdog timer to 30 seconds and pet it every 10 seconds to get a 20 second margin
 service watchdogd /sbin/watchdogd 10 20
@@ -519,12 +480,23 @@ service mobicore /system/bin/mcDriverDaemon -r /system/app/FFFFFFFF0000000000000
 
 # LPM
 on charger
-    mount ext4 /dev/block/mmcblk0p18 /system wait ro
-    class_start sec-charger
 
-service sec-playlpm /system/bin/lpm
-    class sec-charger
+    # EHCI runtime enable for LPA
+        write /sys/devices/platform/s5p-ehci/power/control auto
+    
+        mkdir /data/log 0777
+        chmod 0666 /dev/log/radio
+        chmod 0666 /dev/log/main
+        chmod 0666 /dev/log/event
+    
+        ifup lo
+        hostname localhost
+        domainname localdomain
+
+service charger /sbin/healthd -c
+    class charger
     critical
+    seclabel u:r:healthd:s0
 
 # service for TZPR provisioning version check app
 service scranton_RD /system/bin/scranton_RD
